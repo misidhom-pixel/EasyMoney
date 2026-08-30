@@ -4,6 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>EasyMoney - إدارة ميزانية ومصروفات الأسرة</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#059669">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
   
   <!-- Tailwind CSS & Fonts -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -1005,6 +1009,11 @@
     const savedFamilyCode = getFamilyCode();
     if (savedFamilyCode && isSyncConfigured()) {
       connectSync(savedFamilyCode);
+    }
+
+    // Register service worker (required by Chrome/Android for real "Install app" support)
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js').catch(err => console.error('SW register failed:', err));
     }
   </script>
 </body>
