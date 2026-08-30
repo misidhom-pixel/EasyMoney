@@ -53,9 +53,14 @@
           </div>
         </div>
 
-        <button onclick="openModal('txModal')" class="md:hidden px-3.5 py-2 rounded-xl bg-slate-900 text-white font-bold text-xs">
-          + جديد
-        </button>
+        <div class="flex items-center gap-2 md:hidden">
+          <button onclick="openUserModal()" class="px-2.5 py-2 rounded-xl bg-slate-100 text-slate-700 font-bold text-xs flex items-center gap-1">
+            👤 <span id="currentUserPillMobile">تحديد</span>
+          </button>
+          <button onclick="openModal('txModal')" class="px-3.5 py-2 rounded-xl bg-slate-900 text-white font-bold text-xs">
+            + جديد
+          </button>
+        </div>
       </div>
 
       <!-- Month Selector -->
@@ -74,6 +79,9 @@
 
       <!-- Actions CTA -->
       <div class="hidden md:flex items-center gap-3">
+        <button onclick="openUserModal()" class="px-4 py-2.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-bold shadow-sm transition-all flex items-center gap-1.5">
+          <span>👤</span> <span id="currentUserPill">تحديد المستخدم</span>
+        </button>
         <button onclick="openSyncModal()" class="px-4 py-2.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-bold shadow-sm transition-all flex items-center gap-1.5">
           <span id="syncHeaderIcon">🔄</span> <span>مزامنة الأجهزة</span>
         </button>
@@ -333,6 +341,29 @@
     </div>
   </div>
 
+  <!-- Current User Modal -->
+  <div id="userModal" class="fixed inset-0 z-50 hidden bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white border border-slate-200 rounded-[2rem] w-full max-w-md shadow-2xl overflow-hidden">
+      <div class="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+        <h2 class="text-lg font-black text-slate-900">👤 مين اللي شغال دلوقتي؟</h2>
+        <button onclick="closeModal('userModal')" class="p-2 text-slate-400 hover:text-slate-700 rounded-xl">✕</button>
+      </div>
+      <div class="p-6 space-y-4">
+        <p class="text-xs text-slate-500 leading-relaxed">
+          حدد اسمك عشان كل عملية تضيفها تتسجل باسمك تلقائياً، وتقدر تعرف مين ضاف إيه. الاختيار ده خاص بهذا الجهاز بس.
+        </p>
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">اختر اسمك</label>
+          <select id="userSelect" onchange="handleUserSelectChange()" class="w-full bg-slate-50 border-2 border-slate-200 focus:border-emerald-500 rounded-xl px-4 py-2.5 text-sm text-slate-800 focus:outline-none"></select>
+        </div>
+        <div class="pt-2 flex justify-end gap-2">
+          <button type="button" onclick="closeModal('userModal')" class="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold">لاحقاً</button>
+          <button type="button" onclick="confirmUserSelection()" class="px-6 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold shadow-md">تأكيد</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Device Sync Modal -->
   <div id="syncModal" class="fixed inset-0 z-50 hidden bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
     <div class="bg-white border border-slate-200 rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden">
@@ -369,6 +400,7 @@
           <th class="border border-gray-300 p-2">النوع</th>
           <th class="border border-gray-300 p-2">التصنيف</th>
           <th class="border border-gray-300 p-2">المستفيد</th>
+          <th class="border border-gray-300 p-2">بواسطة</th>
           <th class="border border-gray-300 p-2">البيان والملاحظة</th>
           <th class="border border-gray-300 p-2">المبلغ</th>
         </tr>
@@ -487,6 +519,88 @@
         statusEl.innerText = 'لسه مفعّلتش المزامنة على الجهاز ده.';
       }
       openModal('syncModal');
+    }
+
+    // ============================================================
+    // المستخدم الحالي (هوية خاصة بكل جهاز — مش بتتزامن بين الأجهزة)
+    // ============================================================
+    const ADD_NEW_USER_VALUE = "__add_new_user__";
+
+    function getKnownUsers() {
+      const stored = localStorage.getItem('easymoney_app_users');
+      try {
+        const parsed = stored ? JSON.parse(stored) : [];
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function addKnownUser(name) {
+      const clean = name.trim();
+      if (!clean) return null;
+      const users = getKnownUsers();
+      const dup = users.find(u => u.toLowerCase() === clean.toLowerCase());
+      if (dup) return dup;
+      users.push(clean);
+      localStorage.setItem('easymoney_app_users', JSON.stringify(users));
+      return clean;
+    }
+
+    function getCurrentUser() {
+      return localStorage.getItem('easymoney_current_user') || '';
+    }
+
+    function setCurrentUser(name) {
+      localStorage.setItem('easymoney_current_user', name);
+      updateCurrentUserPill();
+    }
+
+    function updateCurrentUserPill() {
+      const name = getCurrentUser();
+      const label = name || 'تحديد المستخدم';
+      const pill = document.getElementById('currentUserPill');
+      const pillMobile = document.getElementById('currentUserPillMobile');
+      if (pill) pill.innerText = label;
+      if (pillMobile) pillMobile.innerText = name || 'تحديد';
+    }
+
+    function populateUserSelect(selectedValue) {
+      const select = document.getElementById('userSelect');
+      const users = getKnownUsers();
+      select.innerHTML = users.map(u => `<option value="${escapeHtml(u)}">${escapeHtml(u)}</option>`).join('')
+        + `<option value="${ADD_NEW_USER_VALUE}">➕ إضافة اسم جديد...</option>`;
+      if (selectedValue && users.includes(selectedValue)) {
+        select.value = selectedValue;
+      }
+    }
+
+    function handleUserSelectChange() {
+      const select = document.getElementById('userSelect');
+      if (select.value !== ADD_NEW_USER_VALUE) return;
+      const name = prompt('اكتب اسمك:');
+      if (name && name.trim()) {
+        const saved = addKnownUser(name);
+        populateUserSelect(saved);
+      } else {
+        const users = getKnownUsers();
+        populateUserSelect(users[0]);
+      }
+    }
+
+    function openUserModal() {
+      populateUserSelect(getCurrentUser());
+      openModal('userModal');
+    }
+
+    function confirmUserSelection() {
+      const select = document.getElementById('userSelect');
+      if (!select.value || select.value === ADD_NEW_USER_VALUE) {
+        alert('من فضلك اختر أو أضف اسماً أولاً.');
+        return;
+      }
+      setCurrentUser(select.value);
+      closeModal('userModal');
     }
 
     async function saveFamilyCode() {
@@ -711,7 +825,12 @@
       let transactions = getStoredTransactions();
       const existingIdx = transactions.findIndex(t => t.id === id);
 
-      const txData = { id, type: currentTxType, amount, date, category, member, note };
+      // Keep the original creator when editing; stamp the current user only on new entries.
+      const createdBy = existingIdx >= 0
+        ? (transactions[existingIdx].createdBy || getCurrentUser() || 'غير معروف')
+        : (getCurrentUser() || 'غير معروف');
+
+      const txData = { id, type: currentTxType, amount, date, category, member, note, createdBy };
 
       if (existingIdx >= 0) {
         transactions[existingIdx] = txData;
@@ -877,6 +996,7 @@
                   <span class="text-[10px] font-bold px-2 py-0.5 rounded-md ${isInc ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-200 text-slate-700'}">
                     ${escapeHtml(tx.member)}
                   </span>
+                  ${tx.createdBy ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200">👤 ${escapeHtml(tx.createdBy)}</span>` : ''}
                 </div>
                 <p class="text-xs text-slate-500 mt-0.5">${escapeHtml(tx.note) || 'بدون ملاحظات'} • <span class="font-mono">${escapeHtml(tx.date)}</span></p>
               </div>
@@ -990,6 +1110,7 @@
           <td class="border border-gray-300 p-2">${t.type === 'income' ? 'دخل (+)' : 'مصروف (-)'}</td>
           <td class="border border-gray-300 p-2">${escapeHtml(t.category)}</td>
           <td class="border border-gray-300 p-2">${escapeHtml(t.member)}</td>
+          <td class="border border-gray-300 p-2">${escapeHtml(t.createdBy) || '-'}</td>
           <td class="border border-gray-300 p-2">${escapeHtml(t.note) || '-'}</td>
           <td class="border border-gray-300 p-2 font-bold">${t.amount.toLocaleString('en-US')} ج.م</td>
         </tr>
@@ -1002,6 +1123,7 @@
 
     // Init App
     updateMonthHeader();
+    updateCurrentUserPill();
     renderApp();
 
     // If this device already has a saved family code, reconnect to sync
