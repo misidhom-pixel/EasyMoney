@@ -387,7 +387,10 @@
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="block text-[11px] font-bold text-slate-600 mb-1">الجهة / الشخص</label>
-              <input type="text" id="debtParty" placeholder="مثلاً: أحمد، البنك..." class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-emerald-500">
+              <div class="flex items-center gap-2">
+                <select id="debtPartySelect" class="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-emerald-500"></select>
+                <button type="button" onclick="promptNewDebtParty()" class="px-3 py-2 rounded-xl bg-slate-900 text-white text-[11px] font-bold shrink-0">➕ جديد</button>
+              </div>
             </div>
             <div>
               <label class="block text-[11px] font-bold text-slate-600 mb-1">المبلغ الإجمالي</label>
@@ -717,13 +720,51 @@
       }
     }
 
+    // Party names are derived from existing debts — no separate storage
+    // needed, and they stay in sync automatically since debts already are.
+    function getKnownDebtParties() {
+      const names = getDebts().map(d => d.party);
+      return [...new Set(names)].sort((a, b) => a.localeCompare('ar'));
+    }
+
+    function populateDebtPartySelect(selectedValue) {
+      const select = document.getElementById('debtPartySelect');
+      const parties = getKnownDebtParties();
+      if (parties.length === 0) {
+        select.innerHTML = `<option value="">لا يوجد جهات بعد — دوس "➕ جديد"</option>`;
+        return;
+      }
+      select.innerHTML = parties.map(p => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join('');
+      if (selectedValue && parties.includes(selectedValue)) {
+        select.value = selectedValue;
+      }
+    }
+
+    // Adds a brand-new party as a selected option immediately — it becomes
+    // "known" for good the moment a debt using it is actually saved.
+    function promptNewDebtParty() {
+      const name = prompt('اكتب اسم الجهة أو الشخص:');
+      if (!name || !name.trim()) return;
+      const clean = name.trim();
+      const select = document.getElementById('debtPartySelect');
+      const exists = [...select.options].some(o => o.value === clean);
+      if (!exists) {
+        const opt = document.createElement('option');
+        opt.value = clean;
+        opt.innerText = clean;
+        select.appendChild(opt);
+      }
+      select.value = clean;
+    }
+
     function addDebt() {
-      const party = document.getElementById('debtParty').value.trim();
+      const partySelect = document.getElementById('debtPartySelect');
+      const party = partySelect.value.trim();
       const amount = parseFloat(document.getElementById('debtAmount').value);
       const note = document.getElementById('debtNote').value.trim();
 
       if (!party) {
-        alert('من فضلك اكتب اسم الجهة أو الشخص.');
+        alert('من فضلك اختر أو أضف جهة أولاً.');
         return;
       }
       if (isNaN(amount) || amount <= 0) {
@@ -732,20 +773,32 @@
       }
 
       const debts = getDebts();
-      debts.unshift({
-        id: String(Date.now()),
-        type: currentDebtType,
-        party,
-        totalAmount: amount,
-        remainingAmount: amount,
-        note,
-        createdDate: new Date().toISOString().split('T')[0]
-      });
+      // If this party already has a debt of the same type, pour the new
+      // amount into that same entry instead of creating a duplicate one.
+      const existing = debts.find(d => d.type === currentDebtType && d.party.toLowerCase() === party.toLowerCase());
+
+      if (existing) {
+        existing.totalAmount += amount;
+        existing.remainingAmount += amount;
+        if (note) {
+          existing.note = existing.note ? `${existing.note} | ${note}` : note;
+        }
+      } else {
+        debts.unshift({
+          id: String(Date.now()),
+          type: currentDebtType,
+          party,
+          totalAmount: amount,
+          remainingAmount: amount,
+          note,
+          createdDate: new Date().toISOString().split('T')[0]
+        });
+      }
       saveDebts(debts);
 
-      document.getElementById('debtParty').value = '';
       document.getElementById('debtAmount').value = '';
       document.getElementById('debtNote').value = '';
+      populateDebtPartySelect(party);
 
       renderDebtsLists();
       renderDebtsSummary();
@@ -758,6 +811,7 @@
       saveDebts(debts);
       renderDebtsLists();
       renderDebtsSummary();
+      populateDebtPartySelect();
       pushSync();
     }
 
@@ -862,6 +916,7 @@
 
     function openDebtsModal() {
       setDebtType('owe');
+      populateDebtPartySelect();
       renderDebtsLists();
       openModal('debtsModal');
     }
