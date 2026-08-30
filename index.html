@@ -354,7 +354,10 @@
         </p>
         <div>
           <label class="block text-xs font-bold text-slate-700 mb-1">اختر اسمك</label>
-          <select id="userSelect" onchange="handleUserSelectChange()" class="w-full bg-slate-50 border-2 border-slate-200 focus:border-emerald-500 rounded-xl px-4 py-2.5 text-sm text-slate-800 focus:outline-none"></select>
+          <div class="flex items-center gap-2">
+            <select id="userSelect" class="flex-1 bg-slate-50 border-2 border-slate-200 focus:border-emerald-500 rounded-xl px-4 py-2.5 text-sm text-slate-800 focus:outline-none"></select>
+            <button type="button" onclick="promptNewUser()" class="px-3.5 py-2.5 rounded-xl bg-slate-900 text-white text-xs font-bold shrink-0">➕ جديد</button>
+          </div>
         </div>
         <div class="pt-2 flex justify-end gap-2">
           <button type="button" onclick="closeModal('userModal')" class="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold">لاحقاً</button>
@@ -568,23 +571,23 @@
     function populateUserSelect(selectedValue) {
       const select = document.getElementById('userSelect');
       const users = getKnownUsers();
-      select.innerHTML = users.map(u => `<option value="${escapeHtml(u)}">${escapeHtml(u)}</option>`).join('')
-        + `<option value="${ADD_NEW_USER_VALUE}">➕ إضافة اسم جديد...</option>`;
+      if (users.length === 0) {
+        select.innerHTML = `<option value="">لا يوجد أسماء بعد — دوس "➕ جديد"</option>`;
+        return;
+      }
+      select.innerHTML = users.map(u => `<option value="${escapeHtml(u)}">${escapeHtml(u)}</option>`).join('');
       if (selectedValue && users.includes(selectedValue)) {
         select.value = selectedValue;
       }
     }
 
-    function handleUserSelectChange() {
-      const select = document.getElementById('userSelect');
-      if (select.value !== ADD_NEW_USER_VALUE) return;
+    // Works independently of the <select>'s change event, which never
+    // fires when it only has one option (the exact case on first use).
+    function promptNewUser() {
       const name = prompt('اكتب اسمك:');
       if (name && name.trim()) {
         const saved = addKnownUser(name);
         populateUserSelect(saved);
-      } else {
-        const users = getKnownUsers();
-        populateUserSelect(users[0]);
       }
     }
 
@@ -595,8 +598,8 @@
 
     function confirmUserSelection() {
       const select = document.getElementById('userSelect');
-      if (!select.value || select.value === ADD_NEW_USER_VALUE) {
-        alert('من فضلك اختر أو أضف اسماً أولاً.');
+      if (!select.value) {
+        alert('من فضلك أضف اسمك الأول بزرار "➕ جديد".');
         return;
       }
       setCurrentUser(select.value);
