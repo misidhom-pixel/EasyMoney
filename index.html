@@ -364,6 +364,19 @@
     </div>
   </div>
 
+  <!-- Debt Entry Detail Modal -->
+  <div id="debtDetailModal" class="fixed inset-0 z-50 hidden bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white border border-slate-200 rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
+      <div class="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 shrink-0">
+        <h2 id="debtDetailTitle" class="text-lg font-black text-slate-900">تفاصيل الدين</h2>
+        <button onclick="closeModal('debtDetailModal')" class="p-2 text-slate-400 hover:text-slate-700 rounded-xl">✕</button>
+      </div>
+      <div class="p-6 overflow-y-auto">
+        <div id="debtDetailList" class="space-y-2"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- Category Breakdown Modal -->
   <div id="breakdownModal" class="fixed inset-0 z-50 hidden bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
     <div class="bg-white border border-slate-200 rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
@@ -786,16 +799,19 @@
       }
 
       const debts = getDebts();
+      const today = new Date().toISOString().split('T')[0];
       // If this party already has a debt of the same type, pour the new
-      // amount into that same entry instead of creating a duplicate one.
+      // amount into that same entry instead of creating a duplicate one —
+      // but each amount is still logged as its own dated, described entry.
       const existing = debts.find(d => d.type === currentDebtType && d.party.toLowerCase() === party.toLowerCase());
+
+      const newEntry = { id: String(Date.now()), kind: 'add', amount, date: today, note };
 
       if (existing) {
         existing.totalAmount += amount;
         existing.remainingAmount += amount;
-        if (note) {
-          existing.note = existing.note ? `${existing.note} | ${note}` : note;
-        }
+        if (!Array.isArray(existing.entries)) existing.entries = [];
+        existing.entries.push(newEntry);
       } else {
         debts.unshift({
           id: String(Date.now()),
@@ -804,7 +820,8 @@
           totalAmount: amount,
           remainingAmount: amount,
           note,
-          createdDate: new Date().toISOString().split('T')[0]
+          createdDate: today,
+          entries: [newEntry]
         });
       }
       saveDebts(debts);
@@ -851,8 +868,8 @@
       const txId = String(Date.now());
       const txDate = new Date().toISOString().split('T')[0];
 
-      if (!Array.isArray(debt.payments)) debt.payments = [];
-      debt.payments.push({ txId, amount: applied, date: txDate });
+      if (!Array.isArray(debt.entries)) debt.entries = [];
+      debt.entries.push({ id: txId, kind: 'payment', amount: applied, date: txDate, note: '' });
 
       saveDebts(debts);
 
@@ -886,11 +903,65 @@
       if (owedEl) owedEl.innerText = `${totalOwed.toLocaleString('en-US')} ج.م`;
     }
 
+    // Builds the full entry history for a debt. Falls back gracefully for
+    // debts saved before entry-level tracking existed.
+    function normalizeDebtEntries(debt) {
+      if (Array.isArray(debt.entries) && debt.entries.length > 0) {
+        return [...debt.entries].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+      }
+      const fallback = [{ id: debt.id + '-init', kind: 'add', amount: debt.totalAmount, date: debt.createdDate, note: debt.note || '' }];
+      if (Array.isArray(debt.payments)) {
+        debt.payments.forEach(p => fallback.push({ id: p.txId, kind: 'payment', amount: p.amount, date: p.date, note: '' }));
+      }
+      return fallback.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+    }
+
+    function openDebtDetailModal(id) {
+      const debt = getDebts().find(d => d.id === id);
+      if (!debt) return;
+      const isOwe = debt.type === 'owe';
+
+      document.getElementById('debtDetailTitle').innerText = `📋 ${escapeHtml(debt.party)}`;
+
+      const entries = normalizeDebtEntries(debt).reverse(); // newest first
+      const list = document.getElementById('debtDetailList');
+
+      const summary = `
+        <div class="p-3.5 rounded-2xl ${isOwe ? 'bg-rose-50 border-rose-200' : 'bg-emerald-50 border-emerald-200'} border mb-2">
+          <p class="text-[11px] font-bold ${isOwe ? 'text-rose-700' : 'text-emerald-700'}">
+            الإجمالي ${debt.totalAmount.toLocaleString('en-US')} ج.م — المتبقي ${debt.remainingAmount.toLocaleString('en-US')} ج.م
+          </p>
+        </div>`;
+
+      const rows = entries.map(e => {
+        const isAdd = e.kind === 'add';
+        return `
+          <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-3">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-md ${isAdd ? 'bg-amber-50 text-amber-700 border border-amber-200' : (isOwe ? 'bg-rose-50 text-rose-700 border border-rose-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200')}">
+                  ${isAdd ? '➕ إضافة' : (isOwe ? '➖ سداد' : '➖ تحصيل')}
+                </span>
+                <span class="text-[11px] text-slate-400 font-mono">${escapeHtml(e.date)}</span>
+              </div>
+              ${e.note ? `<p class="text-xs text-slate-600 mt-1">${escapeHtml(e.note)}</p>` : ''}
+            </div>
+            <span class="text-sm font-black ${isAdd ? 'text-amber-700' : (isOwe ? 'text-rose-600' : 'text-emerald-600')}">
+              ${isAdd ? '+' : '-'} ${e.amount.toLocaleString('en-US')} ج.م
+            </span>
+          </div>
+        `;
+      }).join('');
+
+      list.innerHTML = summary + (rows || `<p class="text-xs text-slate-400 text-center py-4">لا توجد تفاصيل مسجلة.</p>`);
+      openModal('debtDetailModal');
+    }
+
     function renderDebtCard(debt) {
       const isOwe = debt.type === 'owe';
       const pct = debt.totalAmount > 0 ? Math.min(100, Math.round(((debt.totalAmount - debt.remainingAmount) / debt.totalAmount) * 100)) : 0;
       const isPaid = debt.remainingAmount <= 0;
-      const opsCount = Array.isArray(debt.payments) ? debt.payments.length : 0;
+      const opsCount = normalizeDebtEntries(debt).length;
       return `
         <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
           <div class="flex items-center justify-between mb-1.5">
@@ -903,12 +974,14 @@
           <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden mb-2">
             <div class="h-full ${isOwe ? 'bg-rose-500' : 'bg-emerald-500'} rounded-full" style="width: ${pct}%"></div>
           </div>
-          <div class="flex items-center justify-between">
+          <div class="flex items-center justify-between gap-2">
             <p class="text-[11px] text-slate-500">
               متبقي <strong class="${isOwe ? 'text-rose-700' : 'text-emerald-700'}">${debt.remainingAmount.toLocaleString('en-US')}</strong>
               من ${debt.totalAmount.toLocaleString('en-US')} ج.م
-              ${opsCount > 0 ? ` • ${opsCount} عملية ${isOwe ? 'سداد' : 'تحصيل'}` : ''}
             </p>
+            <button onclick="openDebtDetailModal('${escapeHtml(debt.id)}')" class="text-[11px] font-bold text-indigo-600 underline shrink-0">📋 التفاصيل (${opsCount})</button>
+          </div>
+          <div class="flex justify-end mt-2">
             ${isPaid
               ? `<span class="text-[10px] font-bold px-2 py-1 rounded-lg bg-slate-200 text-slate-600">✅ تم بالكامل</span>`
               : `<button onclick="recordDebtPayment('${escapeHtml(debt.id)}')" class="px-3 py-1.5 rounded-lg ${isOwe ? 'bg-rose-600' : 'bg-emerald-600'} text-white text-[11px] font-bold">${isOwe ? 'تسديد دفعة' : 'تحصيل دفعة'}</button>`
@@ -1009,7 +1082,7 @@
         list.innerHTML = rows.map(d => {
           const pct = grandTotal > 0 ? Math.round((d.remainingAmount / grandTotal) * 100) : 0;
           const isPaid = d.remainingAmount <= 0;
-          const opsCount = Array.isArray(d.payments) ? d.payments.length : 0;
+          const opsCount = normalizeDebtEntries(d).length;
           return `
             <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
               <div class="flex items-center justify-between mb-1.5">
@@ -1024,10 +1097,12 @@
               <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden mb-1">
                 <div class="h-full ${isOwe ? 'bg-rose-500' : 'bg-emerald-500'} rounded-full" style="width: ${pct}%"></div>
               </div>
-              <p class="text-[11px] text-slate-400">
-                من إجمالي ${d.totalAmount.toLocaleString('en-US')} ج.م${!isPaid ? ` • ${pct}% من الإجمالي` : ''}
-                ${opsCount > 0 ? ` • ${opsCount} عملية ${isOwe ? 'سداد' : 'تحصيل'}` : ''}
-              </p>
+              <div class="flex items-center justify-between">
+                <p class="text-[11px] text-slate-400">
+                  من إجمالي ${d.totalAmount.toLocaleString('en-US')} ج.م${!isPaid ? ` • ${pct}%` : ''}
+                </p>
+                <button onclick="openDebtDetailModal('${escapeHtml(d.id)}')" class="text-[11px] font-bold text-indigo-600 underline">📋 التفاصيل (${opsCount})</button>
+              </div>
             </div>
           `;
         }).join('') + manageLink;
