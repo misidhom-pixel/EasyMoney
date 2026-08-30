@@ -192,6 +192,29 @@
       </div>
     </div>
 
+    <!-- Bento Row 2.5: Debts & Receivables -->
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-5">
+      <div class="md:col-span-12 bg-white rounded-[2rem] border border-slate-200 p-6 shadow-sm">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h4 class="text-sm font-bold text-slate-900">💳 الديون والمستحقات</h4>
+            <p class="text-xs text-slate-400">تتبع اللي عليك واللي ليك، وسدد أو حصّل بضغطة واحدة</p>
+          </div>
+          <button onclick="openDebtsModal()" class="px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold shadow-md">إدارة الديون</button>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div class="p-4 rounded-2xl bg-rose-50 border border-rose-200">
+            <p class="text-[11px] font-bold text-rose-700">إجمالي عليّ (لازم أسدده)</p>
+            <p id="totalOweDisplay" class="text-xl font-black text-rose-700 mt-1">0 ج.م</p>
+          </div>
+          <div class="p-4 rounded-2xl bg-emerald-50 border border-emerald-200">
+            <p class="text-[11px] font-bold text-emerald-700">إجمالي ليّا (مستحق لي)</p>
+            <p id="totalOwedDisplay" class="text-xl font-black text-emerald-700 mt-1">0 ج.م</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Bento Row 3: Transaction List Panel -->
     <div class="bg-white rounded-[2.5rem] border border-slate-200 p-6 sm:p-8 shadow-sm space-y-6">
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -341,6 +364,58 @@
     </div>
   </div>
 
+  <!-- Debts & Receivables Modal -->
+  <div id="debtsModal" class="fixed inset-0 z-50 hidden bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white border border-slate-200 rounded-[2rem] w-full max-w-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+      <div class="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 shrink-0">
+        <h2 class="text-lg font-black text-slate-900">💳 الديون والمستحقات</h2>
+        <button onclick="closeModal('debtsModal')" class="p-2 text-slate-400 hover:text-slate-700 rounded-xl">✕</button>
+      </div>
+
+      <div class="p-6 space-y-5 overflow-y-auto">
+        <!-- Add Debt Form -->
+        <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+          <h4 class="text-xs font-bold text-slate-700">إضافة دين جديد</h4>
+          <div class="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-2xl">
+            <button type="button" onclick="setDebtType('owe')" id="debtTypeOweBtn" class="py-2 rounded-xl text-xs font-bold bg-white text-slate-900 shadow-sm">
+              💸 دين عليّ (أنا مديون)
+            </button>
+            <button type="button" onclick="setDebtType('owed')" id="debtTypeOwedBtn" class="py-2 rounded-xl text-xs font-bold text-slate-500">
+              💰 دين ليّا (مستحق لي)
+            </button>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-[11px] font-bold text-slate-600 mb-1">الجهة / الشخص</label>
+              <input type="text" id="debtParty" placeholder="مثلاً: أحمد، البنك..." class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-emerald-500">
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold text-slate-600 mb-1">المبلغ الإجمالي</label>
+              <input type="number" step="any" min="0.01" id="debtAmount" placeholder="0.00" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-emerald-500">
+            </div>
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 mb-1">ملاحظات (اختياري)</label>
+            <input type="text" id="debtNote" placeholder="سبب الدين أو أي تفاصيل" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-emerald-500">
+          </div>
+          <button type="button" onclick="addDebt()" class="w-full py-2.5 rounded-xl bg-slate-900 text-white text-xs font-bold shadow-md">إضافة الدين</button>
+        </div>
+
+        <!-- Debts owed BY me -->
+        <div>
+          <h4 class="text-xs font-bold text-rose-700 mb-2">💸 ديون عليّ</h4>
+          <div id="debtsOweList" class="space-y-2"></div>
+        </div>
+
+        <!-- Debts owed TO me -->
+        <div>
+          <h4 class="text-xs font-bold text-emerald-700 mb-2">💰 ديون ليّا</h4>
+          <div id="debtsOwedList" class="space-y-2"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Current User Modal -->
   <div id="userModal" class="fixed inset-0 z-50 hidden bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
     <div class="bg-white border border-slate-200 rounded-[2rem] w-full max-w-md shadow-2xl overflow-hidden">
@@ -459,6 +534,9 @@
       if (typeof row.budget_cap === 'number' && row.budget_cap > 0) {
         localStorage.setItem('easymoney_budget_cap', String(row.budget_cap));
       }
+      if (Array.isArray(row.debts)) {
+        localStorage.setItem('easymoney_debts', JSON.stringify(row.debts));
+      }
       renderApp();
     }
 
@@ -475,6 +553,7 @@
           transactions: getStoredTransactions(),
           custom_categories: customCategories,
           budget_cap: getBudgetCap(),
+          debts: getDebts(),
           updated_at: new Date().toISOString()
         });
       } catch (err) {
@@ -606,6 +685,187 @@
       closeModal('userModal');
     }
 
+    // ============================================================
+    // الديون والمستحقات
+    // ============================================================
+    let currentDebtType = 'owe'; // 'owe' = عليّ، 'owed' = ليّا
+
+    function getDebts() {
+      const stored = localStorage.getItem('easymoney_debts');
+      try {
+        const parsed = stored ? JSON.parse(stored) : [];
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function saveDebts(debts) {
+      localStorage.setItem('easymoney_debts', JSON.stringify(debts));
+    }
+
+    function setDebtType(type) {
+      currentDebtType = type;
+      const oweBtn = document.getElementById('debtTypeOweBtn');
+      const owedBtn = document.getElementById('debtTypeOwedBtn');
+      if (type === 'owe') {
+        oweBtn.className = "py-2 rounded-xl text-xs font-bold bg-white text-slate-900 shadow-sm";
+        owedBtn.className = "py-2 rounded-xl text-xs font-bold text-slate-500";
+      } else {
+        owedBtn.className = "py-2 rounded-xl text-xs font-bold bg-white text-slate-900 shadow-sm";
+        oweBtn.className = "py-2 rounded-xl text-xs font-bold text-slate-500";
+      }
+    }
+
+    function addDebt() {
+      const party = document.getElementById('debtParty').value.trim();
+      const amount = parseFloat(document.getElementById('debtAmount').value);
+      const note = document.getElementById('debtNote').value.trim();
+
+      if (!party) {
+        alert('من فضلك اكتب اسم الجهة أو الشخص.');
+        return;
+      }
+      if (isNaN(amount) || amount <= 0) {
+        alert('من فضلك أدخل مبلغاً صحيحاً أكبر من صفر.');
+        return;
+      }
+
+      const debts = getDebts();
+      debts.unshift({
+        id: String(Date.now()),
+        type: currentDebtType,
+        party,
+        totalAmount: amount,
+        remainingAmount: amount,
+        note,
+        createdDate: new Date().toISOString().split('T')[0]
+      });
+      saveDebts(debts);
+
+      document.getElementById('debtParty').value = '';
+      document.getElementById('debtAmount').value = '';
+      document.getElementById('debtNote').value = '';
+
+      renderDebtsLists();
+      renderDebtsSummary();
+      pushSync();
+    }
+
+    function deleteDebt(id) {
+      if (!confirm('هل أنت متأكد من حذف هذا الدين؟ (المعاملات اللي اتسجلت من قبل مش هتتحذف)')) return;
+      const debts = getDebts().filter(d => d.id !== id);
+      saveDebts(debts);
+      renderDebtsLists();
+      renderDebtsSummary();
+      pushSync();
+    }
+
+    // Recording a payment does two things at once: reduces the debt's
+    // remaining amount, AND logs a normal expense/income transaction so
+    // it's reflected in the month's budget — as requested.
+    function recordDebtPayment(id) {
+      const debts = getDebts();
+      const debt = debts.find(d => d.id === id);
+      if (!debt) return;
+
+      const input = prompt(`المبلغ اللي عايز ${debt.type === 'owe' ? 'تسدده' : 'تحصّله'} من "${debt.party}" (المتبقي: ${debt.remainingAmount.toLocaleString('en-US')} ج.م):`, debt.remainingAmount);
+      if (input === null) return;
+      const amount = parseFloat(input);
+      if (isNaN(amount) || amount <= 0) {
+        alert('من فضلك أدخل مبلغاً صحيحاً أكبر من صفر.');
+        return;
+      }
+
+      const applied = Math.min(amount, debt.remainingAmount);
+      debt.remainingAmount = Math.max(0, debt.remainingAmount - applied);
+      saveDebts(debts);
+
+      const isOwe = debt.type === 'owe';
+      const txData = {
+        id: String(Date.now()),
+        type: isOwe ? 'expense' : 'income',
+        amount: applied,
+        date: new Date().toISOString().split('T')[0],
+        category: isOwe ? 'سداد دين' : 'تحصيل دين',
+        member: 'الأسرة',
+        note: `${isOwe ? 'سداد جزء من دين' : 'تحصيل جزء من مستحق'} - ${debt.party}`,
+        createdBy: getCurrentUser() || 'غير معروف'
+      };
+      const transactions = getStoredTransactions();
+      transactions.unshift(txData);
+      saveTransactions(transactions);
+
+      renderDebtsLists();
+      renderDebtsSummary();
+      renderApp();
+      pushSync();
+    }
+
+    function renderDebtsSummary() {
+      const debts = getDebts();
+      const totalOwe = debts.filter(d => d.type === 'owe').reduce((s, d) => s + d.remainingAmount, 0);
+      const totalOwed = debts.filter(d => d.type === 'owed').reduce((s, d) => s + d.remainingAmount, 0);
+      const oweEl = document.getElementById('totalOweDisplay');
+      const owedEl = document.getElementById('totalOwedDisplay');
+      if (oweEl) oweEl.innerText = `${totalOwe.toLocaleString('en-US')} ج.م`;
+      if (owedEl) owedEl.innerText = `${totalOwed.toLocaleString('en-US')} ج.م`;
+    }
+
+    function renderDebtCard(debt) {
+      const isOwe = debt.type === 'owe';
+      const pct = debt.totalAmount > 0 ? Math.min(100, Math.round(((debt.totalAmount - debt.remainingAmount) / debt.totalAmount) * 100)) : 0;
+      const isPaid = debt.remainingAmount <= 0;
+      return `
+        <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
+          <div class="flex items-center justify-between mb-1.5">
+            <div>
+              <h5 class="text-sm font-bold text-slate-900">${escapeHtml(debt.party)}</h5>
+              ${debt.note ? `<p class="text-[11px] text-slate-500">${escapeHtml(debt.note)}</p>` : ''}
+            </div>
+            <button onclick="deleteDebt('${escapeHtml(debt.id)}')" class="p-1.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-600 hover:bg-rose-100 text-xs">🗑️</button>
+          </div>
+          <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden mb-2">
+            <div class="h-full ${isOwe ? 'bg-rose-500' : 'bg-emerald-500'} rounded-full" style="width: ${pct}%"></div>
+          </div>
+          <div class="flex items-center justify-between">
+            <p class="text-[11px] text-slate-500">
+              متبقي <strong class="${isOwe ? 'text-rose-700' : 'text-emerald-700'}">${debt.remainingAmount.toLocaleString('en-US')}</strong>
+              من ${debt.totalAmount.toLocaleString('en-US')} ج.م
+            </p>
+            ${isPaid
+              ? `<span class="text-[10px] font-bold px-2 py-1 rounded-lg bg-slate-200 text-slate-600">✅ تم بالكامل</span>`
+              : `<button onclick="recordDebtPayment('${escapeHtml(debt.id)}')" class="px-3 py-1.5 rounded-lg ${isOwe ? 'bg-rose-600' : 'bg-emerald-600'} text-white text-[11px] font-bold">${isOwe ? 'تسديد دفعة' : 'تحصيل دفعة'}</button>`
+            }
+          </div>
+        </div>
+      `;
+    }
+
+    function renderDebtsLists() {
+      const debts = getDebts();
+      const oweList = document.getElementById('debtsOweList');
+      const owedList = document.getElementById('debtsOwedList');
+      if (!oweList || !owedList) return;
+
+      const oweDebts = debts.filter(d => d.type === 'owe');
+      const owedDebts = debts.filter(d => d.type === 'owed');
+
+      oweList.innerHTML = oweDebts.length
+        ? oweDebts.map(renderDebtCard).join('')
+        : `<p class="text-xs text-slate-400 text-center py-3">مفيش ديون عليك مسجلة</p>`;
+
+      owedList.innerHTML = owedDebts.length
+        ? owedDebts.map(renderDebtCard).join('')
+        : `<p class="text-xs text-slate-400 text-center py-3">مفيش مستحقات ليك مسجلة</p>`;
+    }
+
+    function openDebtsModal() {
+      setDebtType('owe');
+      renderDebtsLists();
+      openModal('debtsModal');
+    }
+
     async function saveFamilyCode() {
       const val = document.getElementById('familyCodeInput').value.trim();
       if (!val) {
@@ -638,8 +898,8 @@
     }
     
     const DEFAULT_CATEGORIES = {
-      expense: ["بقالة وسوبرماركت", "سكن وإيجار", "فواتير وكهرباء ومياه", "صحة وأدوية", "تعليم ومدارس", "مواصلات ووقود", "ترفيه ومطاعم", "أخرى"],
-      income: ["راتب شهري", "عمل إضافي وحر", "استثمارات وعوائد", "مكافأة ودعم", "أخرى"]
+      expense: ["بقالة وسوبرماركت", "سكن وإيجار", "فواتير وكهرباء ومياه", "صحة وأدوية", "تعليم ومدارس", "مواصلات ووقود", "ترفيه ومطاعم", "سداد دين", "أخرى"],
+      income: ["راتب شهري", "عمل إضافي وحر", "استثمارات وعوائد", "مكافأة ودعم", "تحصيل دين", "أخرى"]
     };
 
     const ADD_NEW_VALUE = "__add_new__";
@@ -958,6 +1218,7 @@
       }
 
       renderTransactions();
+      renderDebtsSummary();
     }
 
     function renderTransactions() {
