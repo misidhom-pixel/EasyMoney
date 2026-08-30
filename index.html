@@ -787,19 +787,19 @@
       }
 
       // Update Dashboard UI
-      document.getElementById('netSavingsDisplay').innerText = `${netSavings.toLocaleString('ar-EG')} ج.م`;
-      document.getElementById('totalIncomeDisplay').innerText = `${totalIncome.toLocaleString('ar-EG')} ج.م`;
-      document.getElementById('totalExpenseDisplay').innerText = `${totalExpense.toLocaleString('ar-EG')} ج.م`;
+      document.getElementById('netSavingsDisplay').innerText = `${netSavings.toLocaleString('en-US')} ج.م`;
+      document.getElementById('totalIncomeDisplay').innerText = `${totalIncome.toLocaleString('en-US')} ج.م`;
+      document.getElementById('totalExpenseDisplay').innerText = `${totalExpense.toLocaleString('en-US')} ج.م`;
       document.getElementById('savingsRateBadge').innerText = `نسبة التوفير: ${savingsRate}%`;
       document.getElementById('expenseRatioDisplay').innerText = `استهلاك الدخل: ${totalIncome > 0 ? ((totalExpense / totalIncome) * 100).toFixed(0) : 0}%`;
       
       document.getElementById('budgetProgressBar').style.width = `${budgetPct}%`;
       document.getElementById('txCountBadge').innerText = currentMonthTx.length;
       document.getElementById('topCatDisplay').innerText = topCat;
-      document.getElementById('budgetCapLabel').innerText = `${budget.toLocaleString('ar-EG')} ج.م`;
+      document.getElementById('budgetCapLabel').innerText = `${budget.toLocaleString('en-US')} ج.م`;
 
       const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
-      document.getElementById('avgDailyDisplay').innerText = `${Math.round(totalExpense / daysInMonth).toLocaleString('ar-EG')} ج.م`;
+      document.getElementById('avgDailyDisplay').innerText = `${Math.round(totalExpense / daysInMonth).toLocaleString('en-US')} ج.م`;
 
       // Budget status badge — now actually reflects real spending vs cap
       const badge = document.getElementById('budgetStatusBadge');
@@ -826,7 +826,7 @@
         adviceText.innerText = 'سجّل الدخل والمصروفات لهذا الشهر لتظهر لك تحليلات فورية.';
       } else if (netSavings < 0) {
         adviceTitle.innerText = 'تنبيه: المصروفات تجاوزت الدخل';
-        adviceText.innerText = `عجز قدره ${Math.abs(netSavings).toLocaleString('ar-EG')} ج.م هذا الشهر — راجع بند "${topCat}".`;
+        adviceText.innerText = `عجز قدره ${Math.abs(netSavings).toLocaleString('en-US')} ج.م هذا الشهر — راجع بند "${topCat}".`;
       } else if (savingsRate >= 20) {
         adviceTitle.innerText = 'أداء مالي ممتاز';
         adviceText.innerText = `نسبة توفير ${savingsRate}% هذا الشهر، استمر على هذا المعدل.`;
@@ -884,7 +884,7 @@
 
             <div class="flex items-center gap-3">
               <span class="font-black text-sm sm:text-base ${isInc ? 'text-emerald-600' : 'text-rose-600'}">
-                ${isInc ? '+' : '-'} ${tx.amount.toLocaleString('ar-EG')} ج.م
+                ${isInc ? '+' : '-'} ${tx.amount.toLocaleString('en-US')} ج.م
               </span>
               <div class="flex items-center gap-1">
                 <button onclick="editTransactionById('${escapeHtml(tx.id)}')" class="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 text-xs">✏️</button>
@@ -991,7 +991,7 @@
           <td class="border border-gray-300 p-2">${escapeHtml(t.category)}</td>
           <td class="border border-gray-300 p-2">${escapeHtml(t.member)}</td>
           <td class="border border-gray-300 p-2">${escapeHtml(t.note) || '-'}</td>
-          <td class="border border-gray-300 p-2 font-bold">${t.amount.toLocaleString('ar-EG')} ج.م</td>
+          <td class="border border-gray-300 p-2 font-bold">${t.amount.toLocaleString('en-US')} ج.م</td>
         </tr>
       `).join('');
 
