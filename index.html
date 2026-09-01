@@ -113,7 +113,7 @@
           <span id="savingsRateBadge" class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700">
             ↑ نسبة التوفير: 0%
           </span>
-          <span class="text-slate-400 font-medium">حساب فوري للشهر</span>
+          <span class="text-slate-400 font-medium">رصيد متراكم حتى نهاية الشهر</span>
         </div>
       </div>
 
@@ -1413,6 +1413,17 @@
       const rawBudgetPct = (totalExpense / budget) * 100;
       const budgetPct = Math.min(100, rawBudgetPct);
 
+      // Running balance: every transaction up through the end of the
+      // selected month, so a surplus/deficit carries forward into the
+      // next month instead of resetting to zero every month.
+      const cumulativeBalance = allTx
+        .filter(t => {
+          const d = new Date(t.date);
+          const ty = d.getFullYear(), tm = d.getMonth() + 1;
+          return (ty < selectedYear) || (ty === selectedYear && tm <= selectedMonth);
+        })
+        .reduce((sum, t) => sum + (t.type === 'income' ? t.amount : -t.amount), 0);
+
       // Find top expense category
       let topCat = '-';
       let maxCatVal = 0;
@@ -1421,10 +1432,10 @@
       }
 
       // Update Dashboard UI
-      document.getElementById('netSavingsDisplay').innerText = `${netSavings.toLocaleString('en-US')} ج.م`;
+      document.getElementById('netSavingsDisplay').innerText = `${cumulativeBalance.toLocaleString('en-US')} ج.م`;
       document.getElementById('totalIncomeDisplay').innerText = `${totalIncome.toLocaleString('en-US')} ج.م`;
       document.getElementById('totalExpenseDisplay').innerText = `${totalExpense.toLocaleString('en-US')} ج.م`;
-      document.getElementById('savingsRateBadge').innerText = `نسبة التوفير: ${savingsRate}%`;
+      document.getElementById('savingsRateBadge').innerText = `نسبة توفير الشهر: ${savingsRate}%`;
       document.getElementById('expenseRatioDisplay').innerText = `استهلاك الدخل: ${totalIncome > 0 ? ((totalExpense / totalIncome) * 100).toFixed(0) : 0}%`;
       
       document.getElementById('budgetProgressBar').style.width = `${budgetPct}%`;
